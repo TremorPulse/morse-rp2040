@@ -1,11 +1,14 @@
 #![no_std]
 #![no_main]
+#![feature(used_with_arg)]
 
 #[link_section = ".boot2"]
 #[used]
-pub static BOOT2: [u8; 256] = rp2040_boot2::BOOT_LOADER_RAM_MEMCPY;
+pub static BOOT2: [u8; 256] = rp2040_boot2::BOOT_LOADER_GENERIC_03H;
 
-use core::convert::Into;
+use panic_halt as _;
+use cortex_m_semihosting::hprintln;
+
 use rp2040_hal::{
     gpio::{bank0::{Gpio16, Gpio21, Gpio25}, Pin, FunctionSio, SioOutput, SioInput, PullUp, PullDown},
     pac,
@@ -14,27 +17,14 @@ use rp2040_hal::{
     watchdog::Watchdog,
     Sio,
     gpio::Pins,
-    uart::{UartPeripheral, UartConfig, DataBits, StopBits, Parity},
 };
 use rp2040_hal::entry;
 use rp_pico::XOSC_CRYSTAL_FREQ;
 use cortex_m::delay::Delay;
-use nb::block;
-use embedded_hal::digital::v2::{OutputPin, InputPin};
-use rp2040_hal::fugit::RateExtU32;
-use morse_rsdk::DEBOUNCE_TIME_MS;
-use morse_rsdk::DOT_FREQ;
-use morse_rsdk::DASH_FREQ;
-use morse_rsdk::SYNC_PATTERN;
-use morse_rsdk::DOT_THRESHOLD_MS;
-use morse_rsdk::DASH_THRESHOLD_MS;
-use morse_rsdk::BAUD_RATE;
+use embedded_hal::digital::{InputPin, OutputPin};
+use morse_rsdk::{DEBOUNCE_TIME_MS, DOT_FREQ, DASH_FREQ, SYNC_PATTERN, DOT_THRESHOLD_MS, DASH_THRESHOLD_MS};
 
-pub struct Transmitter<UART> 
-where
-    UART: embedded_hal::serial::Write<u8>,
-{
-    uart: UART,
+pub struct Transmitter {
     button_pin: Pin<Gpio16, FunctionSio<SioInput>, PullUp>,
     speaker_pin: Pin<Gpio21, FunctionSio<SioOutput>, PullDown>,
     led_pin: Pin<Gpio25, FunctionSio<SioOutput>, PullDown>,
@@ -42,12 +32,8 @@ where
     delay: Delay,
 }
 
-impl<UART> Transmitter<UART>
-where
-    UART: embedded_hal::serial::Write<u8>,
-{
+impl Transmitter {
     pub fn new(
-        uart: UART,
         button_pin: Pin<Gpio16, FunctionSio<SioInput>, PullUp>,
         speaker_pin: Pin<Gpio21, FunctionSio<SioOutput>, PullDown>,
         led_pin: Pin<Gpio25, FunctionSio<SioOutput>, PullDown>,
@@ -55,7 +41,6 @@ where
         delay: Delay,
     ) -> Self {
         Self {
-            uart,
             button_pin,
             speaker_pin,
             led_pin,
@@ -65,15 +50,7 @@ where
     }
 
     pub fn init(&mut self) {
-        self.uart_log("Transmitter initialized");
-    }
-
-    pub fn uart_log(&mut self, message: &str) {
-        for byte in message.as_bytes() {
-            let _ = block!(self.uart.write(*byte));
-        }
-        let _ = block!(self.uart.write(b'\r'));
-        let _ = block!(self.uart.write(b'\n'));
+        hprintln!("Transmitter initialized");
     }
 
     pub fn generate_tone(&mut self, freq_hz: u32, duration_ms: u32) {
@@ -92,7 +69,7 @@ where
         self.led_pin.set_high().unwrap();
         self.generate_tone(DOT_FREQ, 250);
         self.led_pin.set_low().unwrap();
-        self.uart_log(".");
+        hprintln!(".");
         self.transmit_gap(250);
     }
 
@@ -100,7 +77,7 @@ where
         self.led_pin.set_high().unwrap();
         self.generate_tone(DASH_FREQ, 750);
         self.led_pin.set_low().unwrap();
-        self.uart_log("-");
+        hprintln!("-");
         self.transmit_gap(250);
     }
 
@@ -109,7 +86,7 @@ where
     }
 
     pub fn transmit_sync(&mut self) {
-        self.uart_log("Transmitting sync pattern...");
+        hprintln!("Transmitting sync pattern...");
         for c in SYNC_PATTERN.chars() {
             match c {
                 '.' => self.transmit_dot(),
@@ -117,7 +94,7 @@ where
                 _ => continue,
             }
         }
-        self.uart_log("Sync pattern transmitted");
+        hprintln!("Sync pattern transmitted");
     }
 
     pub fn transmit_morse_input(&mut self) {
@@ -127,46 +104,52 @@ where
         let mut button_was_pressed = false;
         let mut in_word = false;
 
-        self.uart_log("Starting Morse transmission...");
-        self.uart_log("Ready for input");
+        hprintln!("Starting Morse transmission...");
+        hprintln!("Ready for input");
 
         self.transmit_sync();
 
         loop {
-            let current_time = self.timer.get_counter().ticks();
+            let current_ticks = self.timer.get_counter().ticks();
             let button_state = self.button_pin.is_low().unwrap();
 
             if button_state && !button_was_pressed {
-                if current_time - last_release_time > DEBOUNCE_TIME_MS {
-                    press_start = current_time;
+                let current_ms = current_ticks / 1000;
+                let last_release_ms = last_release_time / 1000;
+                
+                if current_ms - last_release_ms > DEBOUNCE_TIME_MS.into() {
+                    press_start = current_ticks;
                     button_was_pressed = true;
                 }
             }
             else if !button_state && button_was_pressed {
-                if current_time - press_start > DEBOUNCE_TIME_MS.into() {
-                    let press_duration = current_time - press_start;
+                let current_ms = current_ticks / 1000;
+                let press_start_ms = press_start / 1000;
+                
+                if current_ms - press_start_ms > DEBOUNCE_TIME_MS.into() {
+                    let press_duration_ms = current_ms - press_start_ms;
 
-                    if press_duration <= DOT_THRESHOLD_MS.into() {
+                    if press_duration_ms <= DOT_THRESHOLD_MS.into() {
                         self.transmit_dot();
-                    } else if press_duration <= DASH_THRESHOLD_MS.into() {
+                    } else if press_duration_ms <= DASH_THRESHOLD_MS.into() {
                         self.transmit_dash();
                     }
-                    last_release_time = current_time;
+                    last_release_time = current_ticks;
                     in_word = true;
                 }
                 button_was_pressed = false;
             }
             else if !button_state && in_word {
-                let gap_duration = current_time - last_release_time;
+                let current_ms = current_ticks / 1000;
+                let last_release_ms = last_release_time / 1000;
+                let gap_duration_ms = current_ms - last_release_ms;
 
-                if gap_duration > 1750u64 {
-                    self.uart_log("WORD GAP");
+                if gap_duration_ms > 1750 {
+                    hprintln!("WORD GAP");
                     in_word = false;
-                } else if gap_duration > 750u64 && gap_duration <= 1750u64 {
-                    if current_time - last_log_time > 750u64 {
-                        self.uart_log("CHAR GAP");
-                        last_log_time = current_time;
-                    }
+                } else if gap_duration_ms > 750 && current_ms - (last_log_time / 1000) > 750 {
+                    hprintln!("CHAR GAP");
+                    last_log_time = current_ticks;
                 }
             }
 
@@ -202,23 +185,11 @@ fn main() -> ! {
     let delay = cortex_m::delay::Delay::new(core.SYST, clocks.system_clock.freq().to_Hz());
     let timer = Timer::new(pac.TIMER, &mut pac.RESETS, &clocks);
     
-    let uart = UartPeripheral::new(
-        pac.UART0,
-        (pins.gpio0.into_function(), pins.gpio1.into_function()),
-        &mut pac.RESETS,
-    )
-    .enable(
-        UartConfig::new(BAUD_RATE.Hz(), DataBits::Eight, core::prelude::v1::Some(Parity::Even), StopBits::One),
-        clocks.peripheral_clock.freq(),
-    )
-    .unwrap();
-    
     let button_pin = pins.gpio16.into_pull_up_input();
     let speaker_pin = pins.gpio21.into_push_pull_output();
     let led_pin = pins.gpio25.into_push_pull_output();
     
     let mut transmitter = Transmitter::new(
-        uart,
         button_pin,
         speaker_pin,
         led_pin,

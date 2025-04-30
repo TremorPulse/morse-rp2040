@@ -5,6 +5,7 @@
 #[used]
 pub static BOOT2: [u8; 256] = rp2040_boot2::BOOT_LOADER_GENERIC_03H;
 
+use panic_halt as _;
 use core::fmt::Write;
 use core::result::Result::{Ok, Err};
 use core::iter::Iterator;
@@ -27,7 +28,9 @@ use rp2040_hal::entry;
 use cortex_m::delay::Delay;
 use heapless::String;
 use nb::block;
-use embedded_hal::digital::v2::OutputPin;
+use embedded_hal::digital::OutputPin;
+use embedded_hal_0_2::serial;
+use embedded_hal_0_2::blocking::i2c;
 use rp2040_hal::fugit::RateExtU32;
 
 use morse_rsdk::{
@@ -39,14 +42,14 @@ use morse_rsdk::{
     LCD_CHAR_WIDTH, MAX_MESSAGE_LENGTH, MAX_MORSE_LENGTH
 };
 
-// Timing constants (if not already defined in lib.rs)
+// Timing constants
 const INTER_CHAR_GAP: u32 = 1000; // 1 second for inter-character gap
 const WORD_GAP: u32 = 2000; // 2 seconds for word gap
 
 pub struct Receiver<UART, I2C> 
 where
-    UART: embedded_hal::serial::Write<u8> + embedded_hal::serial::Read<u8>,
-    I2C: embedded_hal::blocking::i2c::Write,
+    UART: serial::Write<u8> + serial::Read<u8>,
+    I2C: i2c::Write,
 {
     uart: UART,
     i2c: I2C,
@@ -61,8 +64,8 @@ where
 
 impl<UART, I2C> Receiver<UART, I2C>
 where
-    UART: embedded_hal::serial::Write<u8> + embedded_hal::serial::Read<u8>,
-    I2C: embedded_hal::blocking::i2c::Write,
+    UART: serial::Write<u8> + serial::Read<u8>,
+    I2C: i2c::Write,
 {
     pub fn new(
         uart: UART,
@@ -85,16 +88,24 @@ where
     }
 
     pub fn init(&mut self) {
-        self.uart_log("==== Morse Code Receiver with LCD ====");
+        // Test LED first
+        self.led_pin.set_high().unwrap();
+        self.delay.delay_ms(500);
         self.led_pin.set_low().unwrap();
         
+        // Test UART
+        self.uart_log("UART test - if you see this, UART works");
+        
+        // Test I2C LCD
         if self.lcd_init() {
-            self.uart_log("LCD successfully initialized");
+            self.uart_log("LCD initialized successfully");
+            self.lcd_command(LCD_CLEARDISPLAY);
+            self.lcd_print("Hello World!");
         } else {
-            self.uart_log("LCD initialization failed - will continue without LCD");
+            self.uart_log("LCD init failed");
         }
         
-        self.uart_log("Receiver initialized and ready");
+        self.uart_log("System ready");
     }
 
     fn lcd_write_byte(&mut self, byte_value: u8) -> bool {

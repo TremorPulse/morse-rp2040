@@ -1,0 +1,73 @@
+[package]
+name = "morse_rsdk"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+# HAL and board support - use exact versions
+rp2040-hal = { version = "=0.10.2", features = ["rt", "defmt"] }
+rp-pico = "=0.9.0"
+
+# Critical section handling - use u8 which is most compatible
+critical-section = { version = "=1.2.0", features = ["restore-state-u8"], default-features = false }
+
+# Other dependencies
+rp2040-pac = "=0.6.0"
+rp2040-boot2 = "=0.3.0"
+panic-halt = "=0.2.0"
+panic-probe = "=0.3.0"
+defmt = "=1.0.1"
+defmt-rtt = "=1.0.0"
+cortex-m = "=0.7.6"
+cortex-m-rt = "=0.7.3"
+cortex-m-semihosting = "0.5"
+embedded-hal = "=1.0.0"
+embedded-hal-async = "=1.0.0"
+embedded-hal-bus = { version = "=0.2.0", features = ["defmt-03"] }
+embedded_hal_0_2 = {package = "embedded-hal", version = "0.2.5", features = ["unproven"]}
+embedded-io = "=0.6.1"
+embedded-time = "=0.12.1"
+portable-atomic = {version = "1.7.0", features = ["critical-section"]}
+heapless = { version = "=0.8.0", default-features = false }
+nb = "=1.1.0"
+
+[[bin]]
+name = "adc"
+path = "src/bin/adc.rs"
+
+[[bin]]
+name = "gpio"
+path = "src/bin/gpio.rs"
+
+[[bin]]
+name = "interrupt"
+path = "src/bin/interrupt.rs"
+
+[[bin]]
+name = "pwm"
+path = "src/bin/pwm.rs"
+
+[[bin]]
+name = "uart"
+path = "src/bin/uart.rs"
+
+[[bin]]
+name = "transmitter"
+path = "src/bin/transmitter.rs"
+
+[[bin]]
+name = "receiver"
+path = "src/bin/receiver.rs"
+
+[[bin]]
+name = "benchmarks"
+path = "src/bin/benchmarks.rs"
+
+[features]
+default = []
+test = []
+
+[profile.release]
+debug = true
+opt-level = 0
+lto = true
