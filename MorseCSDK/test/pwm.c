@@ -1,67 +1,59 @@
-/**
- * @file pwm.c
- * @brief PWM Setup Time Benchmark for RP2040.
+/*
+ * RP2040 PWM Configuration Timing Test
  *
- * Modified to use an LED instead of a buzzer for output verification.
+ * Evaluates the time required to initialize and configure
+ * a PWM channel on the RP2040 microcontroller.
  *
- * Wiring:
- *   - GPIO15 (pin 20) → LED with 220Ω resistor → GND
- *   - Or use built-in LED on GP25
- *
- * Output format:
- *   task,method,setup_time_us
+ * Hardware:
+ *   - Uses the built-in LED for visual confirmation
  */
 #include "pico/stdlib.h"
 #include "hardware/pwm.h"
 #include <stdio.h>
 
-// You can use the built-in LED if external hardware is an issue
-#define PWM_GPIO PICO_DEFAULT_LED_PIN  // On-board LED (usually GP25)
-#define NUM_ITERATIONS 100  // Number of iterations for each benchmark
+#define PWM_OUTPUT PICO_DEFAULT_LED_PIN  // Keep using built-in LED
+#define TEST_ITERATIONS 100
 
-
-/**
- * @brief Run PWM setup benchmark.
+/*
+ * Main PWM setup timing evaluation function
  */
-void benchmark_pwm(void) {
-    #define PWM_GPIO PICO_DEFAULT_LED_PIN
+void measure_pwm_setup_time(void) {
+    printf("// PWM CONFIGURATION TIMING TEST //\n");
+    printf("OUTPUT | Pin=%d | Tests=%d\n", PWM_OUTPUT, TEST_ITERATIONS);
     
-    printf("task,method,iteration,setup_time_us\n");
-    
-    for (int iteration = 0; iteration < NUM_ITERATIONS; iteration++) {
-        // Reset GPIO back to normal mode before each test
-        gpio_init(PWM_GPIO);
-        gpio_set_dir(PWM_GPIO, GPIO_OUT);
-        gpio_put(PWM_GPIO, 0);
+    for (int test = 0; test < TEST_ITERATIONS; test++) {
+        // Reset pin to standard GPIO mode
+        gpio_init(PWM_OUTPUT);
+        gpio_set_dir(PWM_OUTPUT, GPIO_OUT);
+        gpio_put(PWM_OUTPUT, 0);
         
-        // Set to PWM function
-        gpio_set_function(PWM_GPIO, GPIO_FUNC_PWM);
-        uint slice_num = pwm_gpio_to_slice_num(PWM_GPIO);
+        // Configure for PWM operation
+        gpio_set_function(PWM_OUTPUT, GPIO_FUNC_PWM);
+        uint pwm_slice = pwm_gpio_to_slice_num(PWM_OUTPUT);
         
-        uint32_t start = time_us_32();
+        // Measure PWM setup time
+        uint32_t start_time = time_us_32();
         
-        // Configure PWM peripheral
-        pwm_config config = pwm_get_default_config();
-        pwm_config_set_clkdiv(&config, 100.0f);
-        pwm_init(slice_num, &config, false);
+        // Configure and enable PWM
+        pwm_config cfg = pwm_get_default_config();
+        pwm_config_set_clkdiv(&cfg, 100.0f);
+        pwm_init(pwm_slice, &cfg, false);
+        pwm_set_gpio_level(PWM_OUTPUT, 32768);   // 50% duty cycle
+        pwm_set_enabled(pwm_slice, true);        // Start PWM output
         
-        // Set approximately 50% duty cycle
-        pwm_set_gpio_level(PWM_GPIO, 32768);      // 50% of 65535
-        pwm_set_enabled(slice_num, true);         // Activate PWM
+        uint32_t end_time = time_us_32();
+        uint32_t setup_time = end_time - start_time;
         
-        uint32_t end = time_us_32();
-        uint32_t duration = end - start;
+        // Report measurement
+        printf("TEST[%d] | SetupTime=%lu µs\n", test, setup_time);
         
-        // Output result
-        printf("pwm,setup,%d,%lu\n", iteration, duration);
-        
-        // Run PWM briefly to show it works
+        // Demonstrate PWM is working
         sleep_ms(100);
         
         // Disable PWM
-        pwm_set_enabled(slice_num, false);
+        pwm_set_enabled(pwm_slice, false);
         
-        // Short delay between iterations
+        // Pause between tests
         sleep_ms(100);
     }
 }

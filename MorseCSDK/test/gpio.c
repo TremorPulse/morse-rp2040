@@ -1,40 +1,45 @@
- #include "pico/stdlib.h"
- #include "hardware/gpio.h"
- #include <stdio.h>
- 
- #define TOGGLE_PIN 2
- #define TOGGLE_COUNT 1000
- #define NUM_ITERATIONS 100  // Number of iterations for each benchmark
- 
- // Uncomment for probe/buzzer verification
- //#define SLOW_TOGGLE
- 
- 
- void benchmark_gpio_toggle(void) {
-    #define TOGGLE_PIN 2
-    #define TOGGLE_COUNT 1000
+/*
+ * GPIO Switching Speed Evaluation
+ * 
+ * Tests the RP2040's digital output performance by
+ * measuring the time required for repeated pin toggles.
+ */
+#include "pico/stdlib.h"
+#include "hardware/gpio.h"
+#include <stdio.h>
+
+// Test parameters
+#define TEST_PIN 5          // Using GPIO5 (changed from GPIO2)
+#define COUNT 1000   // Number of on/off cycles per test
+#define TEST_RUNS 100       // Number of test repetitions
+
+void measure_gpio_performance(void) {
+    // Configure GPIO for output
+    gpio_init(TEST_PIN);
+    gpio_set_dir(TEST_PIN, GPIO_OUT);
     
-    gpio_init(TOGGLE_PIN);
-    gpio_set_dir(TOGGLE_PIN, GPIO_OUT);
+    printf("// GPIO TOGGLE PERFORMANCE TEST //\n");
+    printf("CONFIG | Pin=%d | ToggleCount=%d | TestRuns=%d\n", 
+           TEST_PIN, COUNT, TEST_RUNS);
     
-    printf("task,method,iteration,toggles,total_time_us,avg_toggle_us\n");
-    
-    for (int iteration = 0; iteration < NUM_ITERATIONS; iteration++) {
-        uint32_t start = time_us_32();
+    for (int run = 0; run < TEST_RUNS; run++) {
+        uint32_t start_time = time_us_32();
         
-        for (int i = 0; i < TOGGLE_COUNT; i++) {
-            gpio_put(TOGGLE_PIN, 1);
-            gpio_put(TOGGLE_PIN, 0);
+        // Perform rapid GPIO toggling
+        for (int i = 0; i < COUNT; i++) {
+            gpio_put(TEST_PIN, 1);  // Set high
+            gpio_put(TEST_PIN, 0);  // Set low
         }
         
-        uint32_t end = time_us_32();
-        uint32_t duration = end - start;
-        float avg = (float)duration / TOGGLE_COUNT;
+        uint32_t end_time = time_us_32();
+        uint32_t total_time = end_time - start_time;
+        float toggle_rate = (float)total_time / COUNT;
         
-        // Output benchmark results
-        printf("gpio,toggle,%d,%d,%lu,%.2f\n", iteration, TOGGLE_COUNT, duration, avg);
+        // Report results
+        printf("RUN[%d] | TotalTime=%lu µs | PerToggle=%.2f µs\n", 
+               run, total_time, toggle_rate);
         
-        // Short delay between iterations
+        // Brief pause between test runs
         sleep_ms(100);
     }
 }

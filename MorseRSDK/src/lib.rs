@@ -2,6 +2,12 @@
 
 use embedded_time::duration::Milliseconds;
 
+pub mod adc;
+pub mod gpio;
+pub mod interrupt;
+pub mod pwm;
+pub mod uart;
+
 // Constants
 pub const UART_ID: u8 = 0;
 pub const BAUD_RATE: u32 = 115200;

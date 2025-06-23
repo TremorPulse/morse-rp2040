@@ -5,7 +5,7 @@ edition = "2021"
 
 [dependencies]
 # HAL and board support - use exact versions
-rp2040-hal = { version = "=0.10.2", features = ["rt", "defmt"] }
+rp2040-hal = { version = "=0.10.2", features = ["rt", "defmt", "critical-section-impl"] }
 rp-pico = "=0.9.0"
 
 # Critical section handling - use u8 which is most compatible
@@ -18,6 +18,7 @@ panic-halt = "=0.2.0"
 panic-probe = "=0.3.0"
 defmt = "=1.0.1"
 defmt-rtt = "=1.0.0"
+rtt-target = "0.5.0"
 cortex-m = "=0.7.6"
 cortex-m-rt = "=0.7.3"
 cortex-m-semihosting = "0.5"
@@ -31,25 +32,9 @@ portable-atomic = {version = "1.7.0", features = ["critical-section"]}
 heapless = { version = "=0.8.0", default-features = false }
 nb = "=1.1.0"
 
-[[bin]]
-name = "adc"
-path = "src/bin/adc.rs"
-
-[[bin]]
-name = "gpio"
-path = "src/bin/gpio.rs"
-
-[[bin]]
-name = "interrupt"
-path = "src/bin/interrupt.rs"
-
-[[bin]]
-name = "pwm"
-path = "src/bin/pwm.rs"
-
-[[bin]]
-name = "uart"
-path = "src/bin/uart.rs"
+# USB related - IMPORTANT: Fixed to specific versions to avoid mismatches
+usb-device = "0.3.1"
+usbd-serial = "0.2.0"
 
 [[bin]]
 name = "transmitter"
@@ -63,11 +48,24 @@ path = "src/bin/receiver.rs"
 name = "benchmarks"
 path = "src/bin/benchmarks.rs"
 
+[lib]
+name = "morse_rsdk"
+path = "src/lib.rs"
+
+
 [features]
 default = []
 test = []
+miri = ["test"]
+
+[profile.dev]
+debug = 1  # Set to false for max performance
+opt-level = 0  # The highest optimization level (0-3)
+lto = "thin"    # Link-time optimization (more aggressive than "true")
+codegen-units = 1  # Slower compile but better optimization
 
 [profile.release]
-debug = true
+debug = 1  # Set to false for max performance
 opt-level = 0
-lto = true
+lto = "thin"    # Link-time optimization (more aggressive than "true")
+codegen-units = 1  # Slower compile but better optimization

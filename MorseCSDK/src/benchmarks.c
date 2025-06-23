@@ -1,6 +1,7 @@
 #include "pico/stdlib.h"
-#include "benchmarks.h"
+#include "main.h"
 #include <stdio.h>
+#include "benchmarks.h"
 
 #ifndef BENCHMARK_MODE
 #define BENCHMARK_MODE 1
@@ -8,27 +9,28 @@
 
 int main() {
     stdio_init_all();
-    sleep_ms(3000);  // Give USB time to connect
+    sleep_ms(3000);  // Allow time for USB connection
    
-    printf("Raspberry Pi Pico Benchmark Suite\n");
-    printf("Benchmark Mode: %d\n", BENCHMARK_MODE);
-    printf("---------------------------------\n");
+    printf("========================================\n");
+    printf("RP2040 Performance Evaluation Framework\n");
+    printf("Test Mode: %d\n", BENCHMARK_MODE);
+    printf("========================================\n");
    
     #if BENCHMARK_MODE == 1
-    benchmark_gpio_toggle();
+    measure_gpio_performance();
     #elif BENCHMARK_MODE == 2
-    benchmark_pwm();
+    measure_pwm_setup_time();
     #elif BENCHMARK_MODE == 3
-    benchmark_adc();
+    measure_adc_performance();
     #elif BENCHMARK_MODE == 4
-    benchmark_interrupt();
+    measure_interrupt_latency();
     #elif BENCHMARK_MODE == 5
-    benchmark_uart();
+    measure_uart_throughput();
     #else
-    printf("Invalid benchmark mode selected\n");
+    printf("ERROR: Invalid test configuration\n");
     #endif
    
-    // Keep the program running
+    // Keep program running
     while (true) {
         sleep_ms(1000);
     }

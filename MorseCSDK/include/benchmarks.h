@@ -1,19 +1,19 @@
 #ifndef BENCHMARKS_H
 #define BENCHMARKS_H
 
-// GPIO benchmark: Measure GPIO toggle performance
-void benchmark_gpio_toggle(void);
+// GPIO digital output performance test
+void measure_gpio_performance(void);
 
-// PWM benchmark: Measure PWM setup time
-void benchmark_pwm(void);
+// PWM configuration timing test
+void measure_pwm_setup_time(void);
 
-// ADC benchmark: Measure ADC read performance
-void benchmark_adc(void);
+// ADC sampling performance evaluation
+void measure_adc_performance(void);
 
-// Interrupt benchmark: Measure interrupt latency
-void benchmark_interrupt(void);
+// Interrupt response latency measurement
+void measure_interrupt_latency(void);
 
-// UART benchmark: Measure UART transmission performance
-void benchmark_uart(void);
+// UART transmission throughput test
+void measure_uart_throughput(void);
 
 #endif // BENCHMARKS_H

@@ -1,74 +1,77 @@
-/**
- * @file interrupt.c
- * @brief GPIO Interrupt Latency Benchmark for RP2040.
- *
- * Modified to use the onboard LED instead of buzzer
- *
- * Wiring:
- *   - GPIO14 (pin 19) → One leg of button
- *   - Other button leg → GND (we'll use internal pull-up)
- *   - Uses built-in LED on GP25 for visual indicator
+/*
+ * RP2040 Interrupt Response Timing
+ * 
+ * Measures the time between software trigger and interrupt handler execution
+ * to evaluate the microcontroller's interrupt processing performance.
+ * 
+ * Hardware connections:
+ * - Button connected to GPIO16 (with internal pull-up)
+ * - On-board LED used for visual confirmation
  */
 #include "pico/stdlib.h"
 #include "hardware/gpio.h"
 #include <stdio.h>
 #include <stdbool.h>
 
-#define BUTTON_GPIO 16                    // GPIO16 
-#define LED_GPIO PICO_DEFAULT_LED_PIN     // On-board LED (usually GP25)
+#define BUTTON_GPIO 16                    // Keep original pin
+#define LED_GPIO PICO_DEFAULT_LED_PIN     // On-board LED
 
-volatile uint32_t irq_start_time = 0;
-volatile uint32_t irq_latency = 0;
-volatile bool trigger_led = false;
+volatile uint32_t interrupt_start_time = 0;
+volatile uint32_t response_time = 0;
+volatile bool led_trigger = false;
 
-/**
- * @brief GPIO interrupt callback function.
+/*
+ * GPIO interrupt handler function
+ * Records the time between trigger and execution
  */
-void gpio_irq_callback(uint gpio, uint32_t events) {
-    irq_latency = time_us_32() - irq_start_time;
-    printf("interrupt,triggered,%lu\n", irq_latency);
+void gpio_event_handler(uint gpio, uint32_t events) {
+    response_time = time_us_32() - interrupt_start_time;
+    printf("EVENT | Pin=%d | ResponseTime=%lu µs\n", gpio, response_time);
     
-    trigger_led = true;
+    led_trigger = true;
 }
 
-/**
- * @brief Run the interrupt latency benchmark using a button press.
+/*
+ * Main interrupt performance evaluation routine
  */
-void benchmark_interrupt(void) {
+void measure_interrupt_latency(void) {
     stdio_init_all();
-    sleep_ms(3000);  // Give USB time to connect
+    sleep_ms(3000);  // Allow time for USB connection
 
+    // Configure button input with pull-up
     gpio_init(BUTTON_GPIO);
     gpio_set_dir(BUTTON_GPIO, GPIO_IN);
-    gpio_pull_up(BUTTON_GPIO);  // Use pull-up instead of pull-down
+    gpio_pull_up(BUTTON_GPIO);
 
+    // Setup LED for visual feedback
     gpio_init(LED_GPIO);
     gpio_set_dir(LED_GPIO, GPIO_OUT);
     gpio_put(LED_GPIO, 0);
 
+    // Register interrupt handler
     gpio_set_irq_enabled_with_callback(
         BUTTON_GPIO,
-        GPIO_IRQ_EDGE_FALL,  // Trigger on falling edge (button press)
+        GPIO_IRQ_EDGE_FALL,  // Trigger on button press
         true,
-        &gpio_irq_callback
+        &gpio_event_handler
     );
 
-    printf("Benchmark: Interrupt Latency\n");
-    printf("task,method,latency_us\n");
-    printf("Press the button to trigger interrupt...\n");
+    printf("// INTERRUPT LATENCY MEASUREMENT //\n");
+    printf("SETUP | Button=GPIO%d | LED=GPIO%d\n", BUTTON_GPIO, LED_GPIO);
+    printf("Press button to measure interrupt response time...\n");
 
     while (true) {
-        // Capture timestamp before polling for event
-        irq_start_time = time_us_32();
+        // Update timestamp before potential interrupt
+        interrupt_start_time = time_us_32();
 
-        // If ISR was triggered, flash LED briefly
-        if (trigger_led) {
+        // Visual feedback when interrupt occurs
+        if (led_trigger) {
             gpio_put(LED_GPIO, 1);
             sleep_ms(100);
             gpio_put(LED_GPIO, 0);
-            trigger_led = false;
+            led_trigger = false;
         }
 
-        sleep_ms(10);  // Slight delay to reduce CPU usage
+        sleep_ms(10);  // Reduce CPU usage
     }
 }

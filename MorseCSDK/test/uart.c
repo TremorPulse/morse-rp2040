@@ -1,82 +1,68 @@
-/**
- * @file uart.c
- * @brief UART Performance Benchmark for RP2040.
+/*
+ * Serial Communication Performance Test
  *
- * This benchmark measures UART transmission time for various message sizes.
- * It uses the default UART0 peripheral (GPIO0/TX and GPIO1/RX) at 115200 baud.
+ * Evaluates UART transmission speeds with various message sizes
+ * using the RP2040's UART peripheral.
  *
- * Hardware Setup:
- * - UART0 TX (GPIO0, pin 1) → Optional: Connect to a logic analyzer or loopback to RX
- * - UART0 RX (GPIO1, pin 2) → Optional: For loopback testing
- *
- * Output format:
- *   task,method,bytes,time_us,bytes_per_sec
- *
- * @author Samuel Ivuerah
+ * Connection details:
+ *   - UART0: TX on GPIO0, RX on GPIO1 (standard UART pins)
+ *   - 115200 baud rate
  */
 #include "pico/stdlib.h"
 #include "hardware/uart.h"
 #include <stdio.h>
 #include <string.h>
 
-#define UART_ID uart0
-#define BAUD_RATE 115200
+// UART configuration (keeping original pins)
+#define UART_CHANNEL uart0
+#define UART_SPEED 115200
 #define UART_TX_PIN 0
 #define UART_RX_PIN 1
-#define NUM_ITERATIONS 100  // Number of iterations for each benchmark
+#define TEST_ITERATIONS 100
 
-// Test message sizes
-#define NUM_TEST_SIZES 4
-const int test_sizes[NUM_TEST_SIZES] = {10, 50, 100, 250};
+// Test message lengths
+#define MESSAGE_SIZE_COUNT 4
+const int message_sizes[MESSAGE_SIZE_COUNT] = {10, 50, 100, 250};
 
-
-/**
- * @brief Run UART transmission benchmark.
- * 
- * Tests UART transmission speed at various message sizes.
- * Measures time to transmit each message size and calculates throughput.
+/*
+ * UART transmission speed evaluation function
  */
-void benchmark_uart(void) {
-    #define UART_ID uart0
-    #define BAUD_RATE 115200
-    #define UART_TX_PIN 0
-    #define UART_RX_PIN 1
-    
-    // Test message sizes
-    #define NUM_TEST_SIZES 4
-    const int test_sizes[NUM_TEST_SIZES] = {10, 50, 100, 250};
-    
-    // Initialize UART
-    uart_init(UART_ID, BAUD_RATE);
+void measure_uart_throughput(void) {
+    // Initialize UART hardware
+    uart_init(UART_CHANNEL, UART_SPEED);
     gpio_set_function(UART_TX_PIN, GPIO_FUNC_UART);
     gpio_set_function(UART_RX_PIN, GPIO_FUNC_UART);
     
-    printf("task,method,iteration,bytes,time_us,bytes_per_sec\n");
+    printf("// SERIAL COMMUNICATION PERFORMANCE TEST //\n");
+    printf("UART | Channel=%d | Baud=%d | TX=GPIO%d | RX=GPIO%d\n", 
+           0, UART_SPEED, UART_TX_PIN, UART_RX_PIN);
     
-    // Create test message (filled with 'A')
-    char test_message[256];
-    memset(test_message, 'A', sizeof(test_message));
+    // Prepare test data (filled with 'X' character)
+    char test_data[256];
+    memset(test_data, 'X', sizeof(test_data));
     
-    // Run tests for different message sizes
-    for (int size_idx = 0; size_idx < NUM_TEST_SIZES; size_idx++) {
-        int msg_size = test_sizes[size_idx];
-        test_message[msg_size - 1] = '\0';  // Null-terminate at the desired length
+    // Test each message size
+    for (int size_idx = 0; size_idx < MESSAGE_SIZE_COUNT; size_idx++) {
+        int length = message_sizes[size_idx];
+        test_data[length - 1] = '\0';  // Null-terminate at desired length
         
-        for (int iteration = 0; iteration < NUM_ITERATIONS; iteration++) {
-            // Time the transmission
-            uint32_t start = time_us_32();
-            uart_puts(UART_ID, test_message);
-            // Wait for transmission to complete
-            uart_tx_wait_blocking(UART_ID);
-            uint32_t end = time_us_32();
+        printf("SIZE_TEST | MessageLength=%d bytes\n", length);
+        
+        for (int test = 0; test < TEST_ITERATIONS; test++) {
+            // Measure transmission time
+            uint32_t start_time = time_us_32();
+            uart_puts(UART_CHANNEL, test_data);
+            uart_tx_wait_blocking(UART_CHANNEL);  // Wait for completion
+            uint32_t end_time = time_us_32();
             
-            uint32_t duration = end - start;
-            float bytes_per_sec = (float)(msg_size) * 1000000 / duration;
+            uint32_t tx_time = end_time - start_time;
+            float bytes_per_second = (float)(length) * 1000000 / tx_time;
             
             // Output results
-            printf("uart,tx,%d,%d,%lu,%.2f\n", iteration, msg_size, duration, bytes_per_sec);
+            printf("TEST[%d] | Time=%lu µs | Throughput=%.2f B/s\n", 
+                   test, tx_time, bytes_per_second);
             
-            // Short delay between tests
+            // Brief pause between tests
             sleep_ms(50);
         }
     }

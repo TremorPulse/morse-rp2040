@@ -17,8 +17,14 @@ cmake_minimum_required(VERSION 3.12)
 # Pull in Pico SDK
 include(pico_sdk_import.cmake)
 project(MorseCSDK C CXX ASM)
+
 # Initialize the Pico SDK
 pico_sdk_init()
+
+# Disable all optimizations
+add_compile_options(-O0)
+add_compile_options(-O0 -fstack-usage)
+
 # Add include directory
 include_directories(${CMAKE_SOURCE_DIR}/include)
 include_directories(${CMAKE_SOURCE_DIR}/test)
@@ -99,14 +105,14 @@ pico_enable_stdio_uart(benchmark_pwm 0)
 pico_enable_stdio_uart(benchmark_uart 0)
 
 # Link necessary libraries
-target_link_libraries(transmitter pico_stdlib hardware_gpio hardware_adc hardware_uart hardware_pwm hardware_irq hardware_i2c)
-target_link_libraries(receiver pico_stdlib hardware_gpio hardware_adc hardware_uart hardware_pwm hardware_irq hardware_i2c)
+target_link_libraries(transmitter pico_stdlib hardware_gpio hardware_adc hardware_uart hardware_pwm hardware_irq hardware_i2c hardware_timer)
+target_link_libraries(receiver pico_stdlib hardware_gpio hardware_adc hardware_uart hardware_pwm hardware_irq hardware_i2c hardware_timer)
 target_link_libraries(benchmarks pico_stdlib hardware_gpio hardware_adc hardware_uart hardware_pwm hardware_irq hardware_i2c)
-target_link_libraries(benchmark_gpio pico_stdlib hardware_gpio hardware_i2c)
-target_link_libraries(benchmark_adc pico_stdlib hardware_adc)
-target_link_libraries(benchmark_interrupt pico_stdlib hardware_gpio hardware_irq hardware_i2c)
-target_link_libraries(benchmark_pwm pico_stdlib hardware_pwm hardware_i2c)
-target_link_libraries(benchmark_uart pico_stdlib hardware_uart hardware_i2c)
+target_link_libraries(benchmark_gpio pico_stdlib hardware_gpio hardware_i2c hardware_adc)
+target_link_libraries(benchmark_adc pico_stdlib hardware_adc hardware_i2c)
+target_link_libraries(benchmark_interrupt pico_stdlib hardware_gpio hardware_irq hardware_i2c hardware_adc)
+target_link_libraries(benchmark_pwm pico_stdlib hardware_pwm hardware_i2c hardware_adc)
+target_link_libraries(benchmark_uart pico_stdlib hardware_uart hardware_i2c hardware_adc)
 
 # Create .uf2 files for all executables
 pico_add_extra_outputs(transmitter)

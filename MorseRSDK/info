@@ -1,0 +1,2 @@
+{"timestamp":"2025-04-26T00:25:37.923893Z","level":"INFO","fields":{"message":"Writing log to \"info\""},"target":"probe_rs::util::logging","filename":"probe-rs-tools\\src\\bin\\probe-rs\\util\\logging.rs","line_number":21}
+{"timestamp":"2025-04-26T00:25:37.924021Z","level":"INFO","fields":{"message":"Wrote log to \"info\""},"target":"probe_rs::util::logging","filename":"probe-rs-tools\\src\\bin\\probe-rs\\util\\logging.rs","line_number":32}
