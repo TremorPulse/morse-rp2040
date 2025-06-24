@@ -2,8 +2,6 @@
 
 ---
 
-## Visual Studio Code (VSCode)
-
 **IMPORTANT:**  
 VSCode will attempt to automatically build the files when they are placed in the project.
 
@@ -12,8 +10,7 @@ VSCode will attempt to automatically build the files when they are placed in the
 ## Hardware Setup
 
 ### General Notes:
-1. The breadboard has all connections already made.  
-   Refer to the `#define` pre-processed sections in the code, the breadboard schematic, and Section 3 of the report for GPIO pin listings.
+1. Refer to the `#define` pre-processed sections in the code, the breadboard schematic, and Section 3 of the report for GPIO pin listings.
 2. Seven-segment display connections can be ignored.
 
 ---
